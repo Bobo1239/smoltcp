@@ -247,6 +247,7 @@ pub struct TcpSocket<'a> {
     /// The number of packets recived directly after
     /// each other which have the same ACK number.
     local_rx_dup_acks: u8,
+    initial_sequence_number: Option<TcpSeqNumber>,
 
     #[cfg(feature = "async")]
     rx_waker: WakerRegistration,
@@ -303,12 +304,17 @@ impl<'a> TcpSocket<'a> {
             local_rx_last_ack: None,
             local_rx_last_seq: None,
             local_rx_dup_acks: 0,
+            initial_sequence_number: None,
 
             #[cfg(feature = "async")]
             rx_waker: WakerRegistration::new(),
             #[cfg(feature = "async")]
             tx_waker: WakerRegistration::new(),
         }
+    }
+
+    pub fn set_initial_sequence_number(&mut self, isn: Option<TcpSeqNumber>) {
+        self.initial_sequence_number = isn;
     }
 
     /// Register a waker for receive operations.
@@ -544,7 +550,10 @@ impl<'a> TcpSocket<'a> {
         let local_endpoint = IpEndpoint { addr: local_addr, ..local_endpoint };
 
         // Carry over the local sequence number.
-        let local_seq_no = self.local_seq_no;
+        let mut local_seq_no = self.local_seq_no;
+        if let Some(isn) = self.initial_sequence_number {
+            local_seq_no = isn;
+        }
 
         self.reset();
         self.local_endpoint  = local_endpoint;
